@@ -12,6 +12,7 @@ import numpy
 import logging
 import threading
 import argparse
+import smtplib
 
 lock = threading.Lock()
 
@@ -26,7 +27,7 @@ class Strategies():
 		else :
 			if close > buyprice * 1.2:
 				signal = 1
-			elif close < buyprice * 1.2:
+			elif close < buyprice * 0.8:
 				signal = -1
 			else:
 				signal = 0
@@ -74,9 +75,22 @@ class Strategies():
 
 		return signal
 
+	def cci(self, cci):
+		if cci is None:
+			signal = 0
+		else:
+			if cci < -100:
+				signal = 1
+			elif cci > 100:
+				signal = -1
+			else:
+				signal = 0
+
+		return signal
+
 class daybot():
 
-	def __init__(self, key, budget, symbol, period, format, live, debug):
+	def __init__(self, key, budget, symbol, period, format, live, debug, email = False):
 		self.ts = None
 		self.budget = budget
 		self.cash = self.budget
@@ -95,6 +109,7 @@ class daybot():
 		self.signal = None
 		self.nb_strategies = None
 		self.vote = None
+		self.transaction = 0
 		self.buyprice = None
 		self.sellprice = None
 		self.totalbuysize = 0
@@ -102,12 +117,33 @@ class daybot():
 		self.avgbuyprice = None
 		self.totalprofit = 0
 		self.position = 0
-
+		self.inmarket = 0
+		self.outmarket = 0
+		self.marketratio = 0
+		self.email = email
 		self.thread = threading.Thread(target = self.run_bot)
 		self.logfile = datetime.now().strftime("%d_%m_%Y.log")
 		self.logfile = "logs/" + self.symbol + "_" + self.logfile
 		self.logger = self.setup_logger(self.symbol, self.logfile)
 		self.logger.debug("=== %s LOGS %s===" % (self.symbol, datetime.now()))
+
+
+	def notify_user(self, subject, body):
+		server = smtplib.SMTP('smtp.gmail.com:587')
+		server.ehlo()
+		server.starttls()
+		server.login("amine.najahi@gmail.com", "bcyamsmgneicstpx")
+		msg = "\r\n".join([
+			"From: amine.najahi@gmail.com",
+			"To: amine.najahi@gmail.com",
+			"Subject: %s" % subject,
+			"",
+			"%s" % body,
+			""
+		])
+		self.logger.debug("SEND EMAIL NOTIFICATION")
+		server.sendmail("amine.najahi@gmail.com", "amine.najahi@gmail.com", msg)
+		server.quit()
 
 	def setup_logger(self, name, log_file, level=logging.DEBUG):
 		log_setup = logging.getLogger(name)
@@ -132,6 +168,14 @@ class daybot():
 
 		self.position = 1
 
+		if self.email:
+			subject = "[%s] BUY %.2f SHARES @ %8.3f" % (self.symbol, self.buysize, self.close)
+			body = "TIMESTAMP: %s\n" % self.tstamp
+			body += "BUY %.2f SHARES @ %8.3f OF %s STOCK\n" % (self.buysize, self.close, self.symbol)
+			body += "[SUMMARY] BUDGET = %.2f, CASH = %.2f$, INVESTED = %.2f, PROFIT/LOSS = %.2f$, PERF = %.2f%%" % (
+				self.budget, self.cash, self.totalinvested, self.totalprofit, self.perf)
+			self.notify_user(subject, body)
+
 	def sell(self):
 		self.sellprice = self.close
 		self.sellsize = self.totalbuysize
@@ -145,8 +189,16 @@ class daybot():
 		self.logger.debug("%s [%s] SOLD %.2f SHARES @ %8.3f MADE %.3f$" % (self.tstamp, self.symbol, self.sellsize, self.sellprice, self.profit))
 		self.print_balance()
 
-		if self.totalbuysize == 0:
-			self.position = 0
+		self.position = 0
+		self.transaction += 1
+
+		if self.email:
+			subject = "[%s] SELL %.2f SHARES @ %8.3f" % (self.symbol, self.sellsize, self.close)
+			body = "TIMESTAMP: %s\n" % self.tstamp
+			body += "SELL %.2f SHARES @ %8.3f OF %s STOCK\n" % (self.sellsize, self.sellprice, self.symbol)
+			body += "[SUMMARY] BUDGET = %.2f, CASH = %.2f$, INVESTED = %.2f, PROFIT/LOSS = %.2f$, PERF = %.2f%%" % (
+				self.budget, self.cash, self.totalinvested, self.totalprofit, self.perf)
+			self.notify_user(subject, body)
 
 	def run_algo(self, tstamp, row):
 		self.tstamp = tstamp
@@ -160,11 +212,17 @@ class daybot():
 		self.bolltop =row['volatility_bbh']
 		self.bollbot = row['volatility_bbl']
 
-		print("%s [%s] close %8.3f, volume %8d, macd %8.3f, macd_signal %8.3f, macdhist %8.3f, rsi %8.3f, cci %8.3f, bolltop %8.3f, bollbot %8.3f" % (
-			self.tstamp, self.symbol, self.close, self.volume, self.macd, self.macd_signal, self.macdhist, self.rsi, self.cci, self.bolltop, self.bollbot))
+		print("%s [%s] close %8.3f, volume %8d, macd %8.3f, macd_signal %8.3f, macdhist %8.3f, rsi %8.3f, cci %8.3f, bolltop %8.3f, bollbot %8.3f cci %3d" % (
+			self.tstamp, self.symbol, self.close, self.volume, self.macd, self.macd_signal, self.macdhist, self.rsi, self.cci, self.bolltop, self.bollbot, self.cci))
 
 		self.signal = 0
 		self.nb_strategies = 0
+		self.profit_loss_vote = 0
+		self.macd_vote = 0
+		self.rsi_vote = 0
+		self.boll_vote = 0
+		self.cci_vote = 0
+		self.total_vote = 0
 
 		self.profit_loss_vote = self.strategies.take_profit_stop_loss(self.close, self.buyprice)
 		self.nb_strategies += 1
@@ -178,17 +236,24 @@ class daybot():
 		self.boll_vote = self.strategies.boll_out_of_band(self.close, self.bollbot, self.bolltop)
 		self.nb_strategies += 1
 
-		self.total_vote = self.profit_loss_vote + self.macd_vote + self.rsi_vote + self.boll_vote
+		self.cci_vote = self.strategies.cci(self.cci)
+		self.nb_strategies += 1
+
+		self.total_vote = self.profit_loss_vote + self.macd_vote + self.rsi_vote + self.boll_vote + self.cci_vote
 		self.vote = self.total_vote / self.nb_strategies
 
-		print("%s [%s] [%d/%d](%.2f) take_profit_stop_loss %3d, macd_zero_crossing %3d,  rsi_out_of_band %3d, boll_out_off_band %3d" % (
-				self.tstamp, self.symbol, self.total_vote, self.nb_strategies, self.vote, self.profit_loss_vote, self.macd_vote, self.rsi_vote, self.boll_vote))
+		print("%s [%s] [%d/%d](%.2f) take_profit_stop_loss %3d, macd_zero_crossing %3d,  rsi_out_of_band %3d, boll_out_off_band %3d cci %3d" % (
+				self.tstamp, self.symbol, self.total_vote, self.nb_strategies, self.vote, self.profit_loss_vote, self.macd_vote, self.rsi_vote, self.boll_vote, self.cci_vote))
 
-		if self.vote >= 0.5:
-			self.buy(0.5)
-		elif self.vote <= -0.5 and self.position and self.close > self.avgbuyprice:
+		if self.vote >= 0.5 and self.position == 0:
+			self.buy(1)
+		elif self.vote <= -0.5 and self.position == 1 and self.close > self.avgbuyprice * 1.01:
 			self.sell()
 
+		if self.position == 1:
+			self.inmarket += 1
+		else:
+			self.outmarket += 1
 
 	def get_market_data(self, debug=False):
 		print("===GET MARKET DATA FOR %s===" % self.symbol)
@@ -203,15 +268,16 @@ class daybot():
 		#	print(self.data.tail(3))
 
 		# max 5 api calls per minutes
-		time.sleep(15)
+		time.sleep(12)
 
 		print("===GOT MARKET DATA FOR %s===" % self.symbol)
 		return self.data
 
 	def print_balance(self):
 		self.perf = self.totalprofit / self.budget * 100
-		self.logger.debug("%s [%s] BUDGET = %.2f, CASH = %.2f$, INVESTED = %.2f, PROFIT/LOSS = %.2f$, PERF = %.2f%%" % (
-		self.tstamp, self.symbol, self.budget, self.cash, self.totalinvested, self.totalprofit, self.perf))
+		self.marketratio = self.inmarket / (self.inmarket + self.outmarket) * 100
+		self.logger.debug("%s [%8s] BUDGET = %6.2f, IN MARKET = %3d, OUT MARKET = %3d, MARKET RATIO = %3d%%, #TRANSAC = %2d, CASH = %06.2f, INVESTED = %06.2f, PROFIT/LOSS = %6.2f, PERF = %5.2f%%" % (
+		self.tstamp, self.symbol, self.budget, self.inmarket, self.outmarket, self.marketratio, self.transaction, self.cash, self.totalinvested, self.totalprofit, self.perf))
 
 	def backtest(self):
 		print("===BACKTEST FOR %s===" % self.symbol)
@@ -219,33 +285,45 @@ class daybot():
 		dt_string = now.strftime("%Y-%m-%d %H:%M:%S")
 		print(dt_string)
 
+		lock.acquire()
 		self.data = self.get_market_data(debug=self.debug)
+		lock.release()
 
 		for index, row in self.data.iterrows():
 			self.run_algo(index, row)
+
 
 		self.print_balance()
 
 	def livetest(self):
 		print("===LIVETEST FOR %s===" % self.symbol)
 
-		before = None
-		now = None
+		tsbefore = None
+		tsnow = None
 		while True :
+			weekday = datetime.today().weekday()
+			open = datetime.now().replace(hour=9, minute=30)
+			close = datetime.now().replace(hour=16, minute=0)
+			now = datetime.now()
+			dt_string = now.strftime("%Y-%m-%d %H:%M:%S")
 
-			lock.acquire()
-			self.data = self.get_market_data(debug=self.debug)
+			if weekday < 5 and now > open and now < close:
+				lock.acquire()
+				self.data = self.get_market_data(debug=self.debug)
 
-			now = self.data.tail(1).index[0]
-			row = self.data.iloc[-1]
-			if now != before and before is not None:
-				print("TIME LAPSE NOW:%s, BEFORE:%s" % (now, before))
-				print("===RUN ALGO FOR %s===" % (self.symbol))
-				self.run_algo(now, row)
-				print("===RAN ALGO FOR %s===" % (self.symbol))
+				tsnow = self.data.tail(1).index[0]
+				row = self.data.iloc[-1]
+				if tsnow != tsbefore and tsbefore is not None:
+					print("TIME LAPSE NOW:%s, BEFORE:%s" % (tsnow, tsbefore))
+					print("===RUN ALGO FOR %s===" % (self.symbol))
+					self.run_algo(tsnow, row)
+					print("===RAN ALGO FOR %s===" % (self.symbol))
 
-			before = now
-			lock.release()
+				tsbefore = tsnow
+				lock.release()
+			else:
+				print("%s MARKET IS CLOSED..." % dt_string)
+
 			time.sleep(self.period * 60)
 
 	def run_bot(self):
@@ -256,6 +334,9 @@ class daybot():
 
 	def start_bot(self):
 		self.thread.start()
+
+	def stop_bot(self):
+		self.thread.join()
 
 if __name__ == '__main__':
 	bots = []
@@ -271,6 +352,7 @@ if __name__ == '__main__':
 	ap.add_argument("-s", "--symbol", required=False, help="symbols to trade")
 	ap.add_argument("-p", "--period", required=False, help="time interval in min 1, 5, 15, 60")
 	ap.add_argument("-t", "--backtest", required=False, help="backtest")
+	ap.add_argument("-e", "--email", required=False, help="email")
 	args = vars(ap.parse_args())
 
 	if args['key']:
@@ -286,29 +368,50 @@ if __name__ == '__main__':
 	if args['symbol']:
 		watchlist = args['symbol'].split(",")
 	else:
-		watchlist = ['AAPL','MSFT','TSLA']
+		watchlist = ['AAPL', 'MSFT', 'AMZN', 'GOOG', 'FB', 'BABA', 'JPM', 'JNJ', 'V', 'WMT', 'MA', 'PG', 'BAC', 'TSM', 'INTC', 'T']
 
 	if args['period']:
 		period = args['period']
 	else:
-		period = 1
+		period = 15
 
 	if args['backtest']:
 		live = False
 	else:
 		live = True
 
+	if args['email']:
+		email = True
+	else:
+		email = False
+
+	#live = False
+	#watchlist = ['OXY']
+	#watchlist = ['AAPL', 'MSFT', 'TSLA']
+	#top 10 by market cap.
+	#watchlist = ['AAPL', 'MSFT', 'AMZN', 'GOOG', 'FB', 'BABA', 'JPM', 'JNJ', 'V', 'WMT']
+	#emailnotif = True
 	for symbol in watchlist:
 		print("CREATE BOT FOR %s" % symbol)
-		bots.append(daybot(key='LCN3E4TILGN8BPA7', budget=budget, symbol=symbol, period=period, format="full", live=live, debug=True))
-		time.sleep(3)
+		bots.append(daybot(key='LCN3E4TILGN8BPA7', budget=budget, symbol=symbol, period=period, format="full", live=live, debug=True, email=email))
+		time.sleep(1)
 
+	print("STARTING ALL BOTS")
 	for bot in bots:
 		print("START BOT FOR %s" % bot.symbol)
 		bot.start_bot()
+		time.sleep(1)
+
+	print("WAITING FOR BOTS TO FINISH")
+	for bot in bots:
+		bot.stop_bot()
 		time.sleep(3)
 
-	while True:
-		time.sleep(60)
+	time.sleep(15)
+	print("PRINT BALANCE FOR BOTS")
+	for bot in bots:
+		bot.print_balance()
+		time.sleep(1)
 
+	time.sleep(5)
 	print("END OF PROGRAM")
