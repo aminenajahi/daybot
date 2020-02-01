@@ -12,6 +12,7 @@ import numpy
 import logging
 import threading
 import argparse
+import smtplib
 
 lock = threading.Lock()
 
@@ -26,7 +27,7 @@ class Strategies():
 		else :
 			if close > buyprice * 1.2:
 				signal = 1
-			elif close < buyprice * 1.2:
+			elif close < buyprice * 0.8:
 				signal = -1
 			else:
 				signal = 0
@@ -74,9 +75,22 @@ class Strategies():
 
 		return signal
 
+	def cci(self, cci):
+		if cci is None:
+			signal = 0
+		else:
+			if cci < -100:
+				signal = 1
+			elif cci > 100:
+				signal = -1
+			else:
+				signal = 0
+
+		return signal
+
 class daybot():
 
-	def __init__(self, key, budget, symbol, period, format, live, debug):
+	def __init__(self, key, budget, symbol, period, format, live, debug, emailnotif = False):
 		self.ts = None
 		self.budget = budget
 		self.cash = self.budget
@@ -102,12 +116,30 @@ class daybot():
 		self.avgbuyprice = None
 		self.totalprofit = 0
 		self.position = 0
-
+		self.emailnotif = emailnotif
 		self.thread = threading.Thread(target = self.run_bot)
 		self.logfile = datetime.now().strftime("%d_%m_%Y.log")
 		self.logfile = "logs/" + self.symbol + "_" + self.logfile
 		self.logger = self.setup_logger(self.symbol, self.logfile)
 		self.logger.debug("=== %s LOGS %s===" % (self.symbol, datetime.now()))
+
+
+	def notify_user(self, subject, body):
+		server = smtplib.SMTP('smtp.gmail.com:587')
+		server.ehlo()
+		server.starttls()
+		server.login("amine.najahi@gmail.com", "bcyamsmgneicstpx")
+		msg = "\r\n".join([
+			"From: amine.najahi@gmail.com",
+			"To: amine.najahi@gmail.com",
+			"Subject: %s" % subject,
+			"",
+			"%s" % body,
+			""
+		])
+		self.logger.debug("SEND EMAIL NOTIFICATION")
+		server.sendmail("amine.najahi@gmail.com", "amine.najahi@gmail.com", msg)
+		server.quit()
 
 	def setup_logger(self, name, log_file, level=logging.DEBUG):
 		log_setup = logging.getLogger(name)
@@ -132,6 +164,14 @@ class daybot():
 
 		self.position = 1
 
+		if self.emailnotif:
+			subject = "[%s] BUY %.2f SHARES @ %8.3f" % (self.symbol, self.buysize, self.close)
+			body = "TIMESTAMP: %s\n" % self.tstamp
+			body += "BUY %.2f SHARES @ %8.3f OF %s STOCK\n" % (self.buysize, self.close, self.symbol)
+			body += "[SUMMARY] BUDGET = %.2f, CASH = %.2f$, INVESTED = %.2f, PROFIT/LOSS = %.2f$, PERF = %.2f%%" % (
+				self.budget, self.cash, self.totalinvested, self.totalprofit, self.perf)
+			self.notify_user(subject, body)
+
 	def sell(self):
 		self.sellprice = self.close
 		self.sellsize = self.totalbuysize
@@ -145,8 +185,16 @@ class daybot():
 		self.logger.debug("%s [%s] SOLD %.2f SHARES @ %8.3f MADE %.3f$" % (self.tstamp, self.symbol, self.sellsize, self.sellprice, self.profit))
 		self.print_balance()
 
-		if self.totalbuysize == 0:
-			self.position = 0
+		self.position = 0
+
+
+		if self.emailnotif:
+			subject = "[%s] SELL %.2f SHARES @ %8.3f" % (self.symbol, self.sellsize, self.close)
+			body = "TIMESTAMP: %s\n" % self.tstamp
+			body += "SELL %.2f SHARES @ %8.3f OF %s STOCK\n" % (self.sellsize, self.sellprice, self.symbol)
+			body += "[SUMMARY] BUDGET = %.2f, CASH = %.2f$, INVESTED = %.2f, PROFIT/LOSS = %.2f$, PERF = %.2f%%" % (
+				self.budget, self.cash, self.totalinvested, self.totalprofit, self.perf)
+			self.notify_user(subject, body)
 
 	def run_algo(self, tstamp, row):
 		self.tstamp = tstamp
@@ -160,11 +208,17 @@ class daybot():
 		self.bolltop =row['volatility_bbh']
 		self.bollbot = row['volatility_bbl']
 
-		print("%s [%s] close %8.3f, volume %8d, macd %8.3f, macd_signal %8.3f, macdhist %8.3f, rsi %8.3f, cci %8.3f, bolltop %8.3f, bollbot %8.3f" % (
-			self.tstamp, self.symbol, self.close, self.volume, self.macd, self.macd_signal, self.macdhist, self.rsi, self.cci, self.bolltop, self.bollbot))
+		print("%s [%s] close %8.3f, volume %8d, macd %8.3f, macd_signal %8.3f, macdhist %8.3f, rsi %8.3f, cci %8.3f, bolltop %8.3f, bollbot %8.3f cci %3d" % (
+			self.tstamp, self.symbol, self.close, self.volume, self.macd, self.macd_signal, self.macdhist, self.rsi, self.cci, self.bolltop, self.bollbot, self.cci))
 
 		self.signal = 0
 		self.nb_strategies = 0
+		self.profit_loss_vote = 0
+		self.macd_vote = 0
+		self.rsi_vote = 0
+		self.boll_vote = 0
+		self.cci_vote = 0
+		self.total_vote = 0
 
 		self.profit_loss_vote = self.strategies.take_profit_stop_loss(self.close, self.buyprice)
 		self.nb_strategies += 1
@@ -178,15 +232,18 @@ class daybot():
 		self.boll_vote = self.strategies.boll_out_of_band(self.close, self.bollbot, self.bolltop)
 		self.nb_strategies += 1
 
-		self.total_vote = self.profit_loss_vote + self.macd_vote + self.rsi_vote + self.boll_vote
+		self.cci_vote = self.strategies.cci(self.cci)
+		self.nb_strategies += 1
+
+		self.total_vote = self.profit_loss_vote + self.macd_vote + self.rsi_vote + self.boll_vote + self.cci_vote
 		self.vote = self.total_vote / self.nb_strategies
 
-		print("%s [%s] [%d/%d](%.2f) take_profit_stop_loss %3d, macd_zero_crossing %3d,  rsi_out_of_band %3d, boll_out_off_band %3d" % (
-				self.tstamp, self.symbol, self.total_vote, self.nb_strategies, self.vote, self.profit_loss_vote, self.macd_vote, self.rsi_vote, self.boll_vote))
+		print("%s [%s] [%d/%d](%.2f) take_profit_stop_loss %3d, macd_zero_crossing %3d,  rsi_out_of_band %3d, boll_out_off_band %3d cci %3d" % (
+				self.tstamp, self.symbol, self.total_vote, self.nb_strategies, self.vote, self.profit_loss_vote, self.macd_vote, self.rsi_vote, self.boll_vote, self.cci_vote))
 
-		if self.vote >= 0.5:
+		if self.vote >= 0.5 and self.position == 0:
 			self.buy(0.5)
-		elif self.vote <= -0.5 and self.position and self.close > self.avgbuyprice:
+		elif self.vote <= -0.5 and self.position == 1 and self.close > self.avgbuyprice:
 			self.sell()
 
 
@@ -229,23 +286,32 @@ class daybot():
 	def livetest(self):
 		print("===LIVETEST FOR %s===" % self.symbol)
 
-		before = None
-		now = None
+		tsbefore = None
+		tsnow = None
 		while True :
+			weekday = datetime.today().weekday()
+			open = datetime.now().replace(hour=9, minute=30)
+			close = datetime.now().replace(hour=16, minute=0)
+			now = datetime.now()
+			dt_string = now.strftime("%Y-%m-%d %H:%M:%S")
 
-			lock.acquire()
-			self.data = self.get_market_data(debug=self.debug)
+			if weekday < 5 and now > open and now < close:
+				lock.acquire()
+				self.data = self.get_market_data(debug=self.debug)
 
-			now = self.data.tail(1).index[0]
-			row = self.data.iloc[-1]
-			if now != before and before is not None:
-				print("TIME LAPSE NOW:%s, BEFORE:%s" % (now, before))
-				print("===RUN ALGO FOR %s===" % (self.symbol))
-				self.run_algo(now, row)
-				print("===RAN ALGO FOR %s===" % (self.symbol))
+				tsnow = self.data.tail(1).index[0]
+				row = self.data.iloc[-1]
+				if tsnow != tsbefore and tsbefore is not None:
+					print("TIME LAPSE NOW:%s, BEFORE:%s" % (tsnow, tsbefore))
+					print("===RUN ALGO FOR %s===" % (self.symbol))
+					self.run_algo(tsnow, row)
+					print("===RAN ALGO FOR %s===" % (self.symbol))
 
-			before = now
-			lock.release()
+				tsbefore = tsnow
+				lock.release()
+			else:
+				print("%s MARKET IS CLOSED..." % dt_string)
+
 			time.sleep(self.period * 60)
 
 	def run_bot(self):
@@ -271,6 +337,7 @@ if __name__ == '__main__':
 	ap.add_argument("-s", "--symbol", required=False, help="symbols to trade")
 	ap.add_argument("-p", "--period", required=False, help="time interval in min 1, 5, 15, 60")
 	ap.add_argument("-t", "--backtest", required=False, help="backtest")
+	ap.add_argument("-e", "--emailnotif", required=False, help="emailnotif")
 	args = vars(ap.parse_args())
 
 	if args['key']:
@@ -286,21 +353,29 @@ if __name__ == '__main__':
 	if args['symbol']:
 		watchlist = args['symbol'].split(",")
 	else:
-		watchlist = ['AAPL','MSFT','TSLA']
+		watchlist = ['AAPL','MSFT','TSLA', 'FB', 'INTC', 'QCOM']
 
 	if args['period']:
 		period = args['period']
 	else:
-		period = 1
+		period = 15
 
 	if args['backtest']:
 		live = False
 	else:
 		live = True
 
+	if args['emailnotif']:
+		emailnotif = True
+	else:
+		emailnotif = False
+
+	#live = False
+	#watchlist = ['TSLA']
+	#emailnotif = True
 	for symbol in watchlist:
 		print("CREATE BOT FOR %s" % symbol)
-		bots.append(daybot(key='LCN3E4TILGN8BPA7', budget=budget, symbol=symbol, period=period, format="full", live=live, debug=True))
+		bots.append(daybot(key='LCN3E4TILGN8BPA7', budget=budget, symbol=symbol, period=period, format="full", live=live, debug=True, emailnotif=emailnotif))
 		time.sleep(3)
 
 	for bot in bots:
