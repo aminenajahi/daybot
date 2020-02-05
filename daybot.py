@@ -137,7 +137,11 @@ class Strategies():
 
 class daybot():
 
+<<<<<<< HEAD
 	def __init__(self, key, budget, symbol, period, format, live, debug, email = False):
+=======
+	def __init__(self, key, budget, symbol, period, format, live, debug, emailnotif = False):
+>>>>>>> f5067a9496296de8df42eea630226264563f9834
 		self.ts = None
 		self.budget = budget
 		self.cash = self.budget
@@ -164,10 +168,14 @@ class daybot():
 		self.avgbuyprice = None
 		self.totalprofit = 0
 		self.position = 0
+<<<<<<< HEAD
 		self.inmarket = 0
 		self.outmarket = 0
 		self.marketratio = 0
 		self.email = email
+=======
+		self.emailnotif = emailnotif
+>>>>>>> f5067a9496296de8df42eea630226264563f9834
 		self.thread = threading.Thread(target = self.run_bot)
 		self.logfile = datetime.now().strftime("%d_%m_%Y.log")
 		self.logfile = "logs/" + self.symbol + "_" + self.logfile
@@ -215,7 +223,11 @@ class daybot():
 
 		self.position = 1
 
+<<<<<<< HEAD
 		if self.email:
+=======
+		if self.emailnotif:
+>>>>>>> f5067a9496296de8df42eea630226264563f9834
 			subject = "[%s] BUY %.2f SHARES @ %8.3f" % (self.symbol, self.buysize, self.close)
 			body = "TIMESTAMP: %s\n" % self.tstamp
 			body += "BUY %.2f SHARES @ %8.3f OF %s STOCK\n" % (self.buysize, self.close, self.symbol)
@@ -237,9 +249,15 @@ class daybot():
 		self.print_balance()
 
 		self.position = 0
+<<<<<<< HEAD
 		self.transaction += 1
 
 		if self.email:
+=======
+
+
+		if self.emailnotif:
+>>>>>>> f5067a9496296de8df42eea630226264563f9834
 			subject = "[%s] SELL %.2f SHARES @ %8.3f" % (self.symbol, self.sellsize, self.close)
 			body = "TIMESTAMP: %s\n" % self.tstamp
 			body += "SELL %.2f SHARES @ %8.3f OF %s STOCK\n" % (self.sellsize, self.sellprice, self.symbol)
@@ -292,9 +310,15 @@ class daybot():
 		print("%s [%s] [%d/%d](%.2f) take_profit_stop_loss %3d, macd_zero_crossing %3d,  rsi_out_of_band %3d, boll_out_off_band %3d cci %3d" % (
 				self.tstamp, self.symbol, self.total_vote, self.nb_strategies, self.vote, self.profit_loss_vote, self.macd_vote, self.rsi_vote, self.boll_vote, self.cci_vote))
 
+<<<<<<< HEAD
 		if self.vote >= 0.5:
 			self.buy()
 		elif self.vote <= -0.5 and self.position == 1 and self.close > self.avgbuyprice * 1.01:
+=======
+		if self.vote >= 0.5 and self.position == 0:
+			self.buy(0.5)
+		elif self.vote <= -0.5 and self.position == 1 and self.close > self.avgbuyprice:
+>>>>>>> f5067a9496296de8df42eea630226264563f9834
 			self.sell()
 
 		if self.position == 1:
@@ -644,7 +668,7 @@ if __name__ == '__main__':
 	if args['period']:
 		period = args['period']
 	else:
-		period = 15
+		period = 5
 
 	if args['backtest']:
 		live = False
