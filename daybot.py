@@ -22,6 +22,17 @@ class MorningBuy():
 		self.stopclose = None
 		self.prevclose = None
 
+	def take_profit(self, close, buyprice):
+		if buyprice is None or close is None:
+			signal = 0
+		else :
+			if close > buyprice * 1.2:
+				signal = -1
+			else:
+				signal = 0
+
+		return signal
+
 	def trailing_stop(self, close, ratio):
 		if close is None or self.stopclose is None or self.prevclose is None:
 			signal = 0
@@ -41,7 +52,7 @@ class MorningBuy():
 		return signal
 
 
-	def run_strategy(self, tstamp, row, stock):
+	def run_strategy(self, tstamp, row, symbol):
 		self.tstamp = tstamp
 		self.close = row['4. close']
 		self.volume = row['5. volume']
@@ -52,13 +63,12 @@ class MorningBuy():
 		self.cci = row['trend_cci']
 		self.bolltop = row['volatility_bbh']
 		self.bollbot = row['volatility_bbl']
-		self.adx = row['trend_adx']
-		self.ema = row['ema']
 
-		print("\n%s [%8s] close %8.3f, volume %8d, macd %8.3f, macd_signal %8.3f, macdhist %8.3f, rsi %8.3f, cci %8.3f, bolltop %8.3f, bollbot %8.3f, ema %8.3f, adx %8.3f" % (
-			self.tstamp, stock.symbol, self.close, self.volume, self.macd, self.macd_signal, self.macdhist, self.rsi, self.cci, self.bolltop, self.bollbot, self.ema, self.adx))
+		print("\n%s [%8s] close %8.3f, volume %8d, macd %8.3f, macd_signal %8.3f, macdhist %8.3f, rsi %8.3f, cci %8.3f, bolltop %8.3f, bollbot %8.3f" % (
+			self.tstamp, symbol, self.close, self.volume, self.macd, self.macd_signal, self.macdhist, self.rsi, self.cci, self.bolltop, self.bollbot))
 
-		signal = self.trailing_stop(self.close, 0.85)
+		signal = self.trailing_stop(self.close, 0.25)
+		signal += self.take_profit(self.close)
 
 		return signal
 
@@ -137,11 +147,7 @@ class Strategies():
 
 class daybot():
 
-<<<<<<< HEAD
 	def __init__(self, key, budget, symbol, period, format, live, debug, email = False):
-=======
-	def __init__(self, key, budget, symbol, period, format, live, debug, emailnotif = False):
->>>>>>> f5067a9496296de8df42eea630226264563f9834
 		self.ts = None
 		self.budget = budget
 		self.cash = self.budget
@@ -168,14 +174,10 @@ class daybot():
 		self.avgbuyprice = None
 		self.totalprofit = 0
 		self.position = 0
-<<<<<<< HEAD
 		self.inmarket = 0
 		self.outmarket = 0
 		self.marketratio = 0
 		self.email = email
-=======
-		self.emailnotif = emailnotif
->>>>>>> f5067a9496296de8df42eea630226264563f9834
 		self.thread = threading.Thread(target = self.run_bot)
 		self.logfile = datetime.now().strftime("%d_%m_%Y.log")
 		self.logfile = "logs/" + self.symbol + "_" + self.logfile
@@ -223,11 +225,7 @@ class daybot():
 
 		self.position = 1
 
-<<<<<<< HEAD
 		if self.email:
-=======
-		if self.emailnotif:
->>>>>>> f5067a9496296de8df42eea630226264563f9834
 			subject = "[%s] BUY %.2f SHARES @ %8.3f" % (self.symbol, self.buysize, self.close)
 			body = "TIMESTAMP: %s\n" % self.tstamp
 			body += "BUY %.2f SHARES @ %8.3f OF %s STOCK\n" % (self.buysize, self.close, self.symbol)
@@ -249,15 +247,9 @@ class daybot():
 		self.print_balance()
 
 		self.position = 0
-<<<<<<< HEAD
 		self.transaction += 1
 
 		if self.email:
-=======
-
-
-		if self.emailnotif:
->>>>>>> f5067a9496296de8df42eea630226264563f9834
 			subject = "[%s] SELL %.2f SHARES @ %8.3f" % (self.symbol, self.sellsize, self.close)
 			body = "TIMESTAMP: %s\n" % self.tstamp
 			body += "SELL %.2f SHARES @ %8.3f OF %s STOCK\n" % (self.sellsize, self.sellprice, self.symbol)
@@ -310,15 +302,9 @@ class daybot():
 		print("%s [%s] [%d/%d](%.2f) take_profit_stop_loss %3d, macd_zero_crossing %3d,  rsi_out_of_band %3d, boll_out_off_band %3d cci %3d" % (
 				self.tstamp, self.symbol, self.total_vote, self.nb_strategies, self.vote, self.profit_loss_vote, self.macd_vote, self.rsi_vote, self.boll_vote, self.cci_vote))
 
-<<<<<<< HEAD
 		if self.vote >= 0.5:
-			self.buy()
-		elif self.vote <= -0.5 and self.position == 1 and self.close > self.avgbuyprice * 1.01:
-=======
-		if self.vote >= 0.5 and self.position == 0:
 			self.buy(0.5)
-		elif self.vote <= -0.5 and self.position == 1 and self.close > self.avgbuyprice:
->>>>>>> f5067a9496296de8df42eea630226264563f9834
+		elif self.vote <= -0.5 and self.position == 1 and self.close > self.avgbuyprice * 1.01:
 			self.sell()
 
 		if self.position == 1:
@@ -426,7 +412,7 @@ class morningbot():
 		self.volume = None
 		self.tstamp = None
 		self.ts = TimeSeries(key=key, output_format='pandas')
-		self.strategies = MorningBuy()
+		self.strategy = MorningBuy()
 		self.signal = None
 		self.nb_strategies = None
 		self.vote = None
@@ -446,7 +432,7 @@ class morningbot():
 		self.logfile = datetime.now().strftime("%d_%m_%Y.log")
 		self.logfile = "logs/" + self.symbol + "_" + self.logfile
 		self.logger = self.setup_logger(self.symbol, self.logfile)
-		self.logger.debug("=== %s LOGS %s===" % (self.symbol, datetime.now()))
+		self.logger.debug("=== MORNNGBOT %s LOGS %s===" % (self.symbol, datetime.now()))
 
 
 	def notify_user(self, subject, body):
@@ -536,13 +522,14 @@ class morningbot():
 		print("%s [%s] close %8.3f, volume %8d, macd %8.3f, macd_signal %8.3f, macdhist %8.3f, rsi %8.3f, cci %8.3f, bolltop %8.3f, bollbot %8.3f cci %3d" % (
 			self.tstamp, self.symbol, self.close, self.volume, self.macd, self.macd_signal, self.macdhist, self.rsi, self.cci, self.bolltop, self.bollbot, self.cci))
 
+		print("===RUN STRATEGY FOR %s===" % self.symbol)
 		self.signal = 0
-		self.signal = self.strategy.run_strategy(self.tstamp, row, self.stock)
+		self.signal = self.strategy.run_strategy(self.tstamp, row, self.symbol)
 
-		if self.tstamp  > self.tstamp.replace(hour=9, minute=30) and self.tstamp  < self.tstamp.replace(hour=10, minute=0) and self.stock.position == 0:
-			self.buy(0.5)
+		if self.tstamp  > self.tstamp.replace(hour=9, minute=30) and self.tstamp  < self.tstamp.replace(hour=10, minute=30) and self.position == 0:
+			self.buy(1)
 
-		if self.signal == -1 and self.stock.position == 1:
+		if self.signal == -1 and self.position == 1:
 			self.sell()
 
 		if self.position == 1:
@@ -570,7 +557,11 @@ class morningbot():
 
 	def print_balance(self):
 		self.perf = self.totalprofit / self.budget * 100
-		self.marketratio = self.inmarket / (self.inmarket + self.outmarket) * 100
+		if self.inmarket != 0 and self.outmarket != 0:
+			self.marketratio = self.inmarket / (self.inmarket + self.outmarket) * 100
+		else:
+			self.marketratio = 0
+
 		self.logger.debug("%s [%8s] BUDGET = %6.2f, IN MARKET = %3d, OUT MARKET = %3d, MARKET RATIO = %3d%%, #TRANSAC = %2d, CASH = %06.2f, INVESTED = %06.2f, PROFIT/LOSS = %6.2f, PERF = %5.2f%%" % (
 		self.tstamp, self.symbol, self.budget, self.inmarket, self.outmarket, self.marketratio, self.transaction, self.cash, self.totalinvested, self.totalprofit, self.perf))
 
@@ -648,6 +639,7 @@ if __name__ == '__main__':
 	ap.add_argument("-p", "--period", required=False, help="time interval in min 1, 5, 15, 60")
 	ap.add_argument("-t", "--backtest", required=False, help="backtest")
 	ap.add_argument("-e", "--email", required=False, help="email")
+	ap.add_argument("-n", "--botname", required=False, help="botname")
 	args = vars(ap.parse_args())
 
 	if args['key']:
@@ -680,15 +672,31 @@ if __name__ == '__main__':
 	else:
 		email = False
 
+	if args['botname']:
+		botname = args['botname']
+	else:
+		botname = 'daybot'
+
 	#live = False
 	#watchlist = ['OXY']
 	#watchlist = ['AAPL', 'MSFT', 'TSLA']
 	#top 10 by market cap.
 	#watchlist = ['AAPL', 'MSFT', 'AMZN', 'GOOG', 'FB', 'BABA', 'JPM', 'JNJ', 'V', 'WMT']
 	#emailnotif = True
+
+	#dailymovers
+	watchlist = ['MYO','VVUS','PLAG','ALEC','CEI']
+	email = True
+	botname = 'morningbot'
+	period = 5
+
 	for symbol in watchlist:
 		print("CREATE BOT FOR %s" % symbol)
-		bots.append(daybot(key='LCN3E4TILGN8BPA7', budget=budget, symbol=symbol, period=period, format="full", live=live, debug=True, email=email))
+		if botname is 'daybot':
+			bots.append(daybot(key='LCN3E4TILGN8BPA7', budget=budget, symbol=symbol, period=period, format="full", live=live, debug=True, email=email))
+		else:
+			bots.append(morningbot(key='LCN3E4TILGN8BPA7', budget=budget, symbol=symbol, period=period, format="full", live=live, debug=True, email=email))
+
 		time.sleep(1)
 
 	print("STARTING ALL BOTS")
