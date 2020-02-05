@@ -358,7 +358,7 @@ if __name__ == '__main__':
 	if args['period']:
 		period = args['period']
 	else:
-		period = 15
+		period = 5
 
 	if args['backtest']:
 		live = False
