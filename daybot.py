@@ -292,8 +292,8 @@ class daybot():
 		print("%s [%s] [%d/%d](%.2f) take_profit_stop_loss %3d, macd_zero_crossing %3d,  rsi_out_of_band %3d, boll_out_off_band %3d cci %3d" % (
 				self.tstamp, self.symbol, self.total_vote, self.nb_strategies, self.vote, self.profit_loss_vote, self.macd_vote, self.rsi_vote, self.boll_vote, self.cci_vote))
 
-		if self.vote >= 0.5 and self.position == 0:
-			self.buy(1)
+		if self.vote >= 0.5:
+			self.buy()
 		elif self.vote <= -0.5 and self.position == 1 and self.close > self.avgbuyprice * 1.01:
 			self.sell()
 
@@ -516,7 +516,7 @@ class morningbot():
 		self.signal = self.strategy.run_strategy(self.tstamp, row, self.stock)
 
 		if self.tstamp  > self.tstamp.replace(hour=9, minute=30) and self.tstamp  < self.tstamp.replace(hour=10, minute=0) and self.stock.position == 0:
-			self.buy()
+			self.buy(0.5)
 
 		if self.signal == -1 and self.stock.position == 1:
 			self.sell()
