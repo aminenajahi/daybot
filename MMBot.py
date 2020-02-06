@@ -16,7 +16,7 @@ class MMBot(object):
 		self.budget = budget
 		self.cash = budget
 		self.symbol = symbol
-		self.period = period
+		self.period = int(period)
 		self.daily = daily
 		self.live = live
 		self.debug = debug
