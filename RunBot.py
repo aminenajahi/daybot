@@ -35,7 +35,7 @@ if __name__ == '__main__':
 	if args['budget']:
 		budget = int(args['budget'])
 	else:
-		budget = 500
+		budget = 1000
 
 	if args['watchlist']:
 		watchlist = args['watchlist'].split(",")

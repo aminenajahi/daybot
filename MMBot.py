@@ -66,6 +66,9 @@ class MMBot(object):
 				self.stock.transaction, self.cash, self.stock.totalinvested, self.stock.potentialvalue, self.stock.potentialprofit, self.stock.potentialperf, self.stock.totalprofit, self.stock.perf))
 
 	def buy(self):
+		self.mylogger.logger.debug(
+			"\n%s [%s] BUY OPPORTUNITY @ %8.3f" % (self.stock.tstamp, self.stock.symbol, self.stock.close))
+
 		self.stock.buy(self.riskfactor, self.cash)
 		self.cash -= self.stock.buysize * self.stock.buyprice
 		self.print_balance()
@@ -77,8 +80,10 @@ class MMBot(object):
 			self.notify_user(subject, body)
 
 	def sell(self):
+		self.mylogger.logger.debug(
+			"\n%s [%s] SELL OPPORTUNITY @ %8.3f" % (self.stock.tstamp, self.stock.symbol, self.stock.close))
 
-		self.stock.sell()
+		self.stock.sell(self.riskfactor)
 		self.cash += self.stock.sellsize * self.stock.sellprice
 		self.print_balance()
 
@@ -99,7 +104,7 @@ class MMBot(object):
 				self.buy()
 
 		elif signal == self.SELL:
-			if self.stock.position == 1:
+			if self.stock.close > self.stock.avgbuyprice and self.stock.totalbuysize > 0:
 				self.sell()
 
 		self.stock.updatemarketcounter()

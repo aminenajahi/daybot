@@ -165,7 +165,7 @@ class MMStrategy():
 
 		if self.vote >= self.BUY * 0.5:
 			signal = self.BUY
-		elif self.vote <= self.SELL * 1 and stock.position == 1:
+		elif self.vote <= self.SELL * 1:
 			signal = self.SELL
 		else:
 			signal = 0
