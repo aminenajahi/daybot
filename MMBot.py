@@ -13,6 +13,7 @@ class MMBot(object):
 
 	def __init__(self, key, budget, symbol, period, live, debug, email = False, daily = False):
 		self.data = None
+		self.botname = "MMBot"
 		self.budget = budget
 		self.cash = budget
 		self.symbol = symbol
@@ -74,7 +75,7 @@ class MMBot(object):
 		self.print_balance()
 
 		if self.email:
-			subject = "[%s] BUY %.2f SHARES @ %8.3f" % (self.stock.symbol, self.stock.buysize, self.stock.close)
+			subject = "[%s] [%s] BUY %.2f SHARES @ %8.3f" % (self.botname, self.stock.symbol, self.stock.buysize, self.stock.close)
 			body = "TIMESTAMP: %s\n" % self.stock.tstamp
 			body += "BUY %.2f SHARES @ %8.3f OF %s STOCK\n" % (self.stock.buysize, self.stock.close, self.stock.symbol)
 			self.notify_user(subject, body)
@@ -88,7 +89,7 @@ class MMBot(object):
 		self.print_balance()
 
 		if self.email:
-			subject = "[%s] SELL %.2f SHARES @ %8.3f" % (self.stock.symbol, self.stock.sellsize, self.stock.close)
+			subject = "[%s] [%s] SELL %.2f SHARES @ %8.3f" % (self.botname, self.stock.symbol, self.stock.sellsize, self.stock.close)
 			body = "TIMESTAMP: %s\n" % self.stock.tstamp
 			body += "SELL %.2f SHARES @ %8.3f OF %s STOCK\n" % (self.stock.sellsize, self.stock.sellprice, self.stock.symbol)
 			self.notify_user(subject, body)
