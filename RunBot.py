@@ -25,6 +25,8 @@ if __name__ == '__main__':
 	ap.add_argument("-t", "--backtest", required=False, help="backtest")
 	ap.add_argument("-e", "--email", required=False, help="email")
 	ap.add_argument("-n", "--botname", required=False, help="botname")
+	ap.add_argument("-i", "--ibk", required=False, help="use interactive broker")
+	ap.add_argument("-s", "--since", required=False, help="since")
 	args = vars(ap.parse_args())
 
 	if args['key']:
@@ -35,7 +37,7 @@ if __name__ == '__main__':
 	if args['budget']:
 		budget = int(args['budget'])
 	else:
-		budget = 1000
+		budget = 2000
 
 	if args['watchlist']:
 		watchlist = args['watchlist'].split(",")
@@ -67,9 +69,19 @@ if __name__ == '__main__':
 	else:
 		botname = 'SimpleBot'
 
+	if args['ibk']:
+		ibk = True
+	else:
+		ibk = False
+
+	if args['since']:
+		since = args['since']
+	else:
+		since = '2019-01-01'
+
 	totalbudget = len(watchlist) * budget
 	print("CREATE BOT MANAGER %s" % botname)
-	botManager = BotManager(botname=botname, watchlist=watchlist, key='LCN3E4TILGN8BPA7', budget=totalbudget, period=period, live=live, debug=False, email=email, daily=daily)
+	botManager = BotManager(botname=botname, watchlist=watchlist, key=apikey, budget=totalbudget, period=period, live=live, debug=False, email=email, daily=daily, ibk=ibk, since=since)
 
 	print("CREATING ALL BOTS")
 	botManager.create_bots()
