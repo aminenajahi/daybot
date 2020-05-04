@@ -1,174 +1,158 @@
+import math
+import talib
 
 class MMStrategy():
 
-	def __init__(self):
+	def __init__(self, mylogger):
 		self.stock = None
-		self.prev_macdhist = 0
-		self.prev_ema = 0
-		self.BUY = 1
-		self.SELL = -1
-		self.HOLD = 0
+		self.mylogger = mylogger
+		self.NEUTRAL = 0
 
-	def __take_profit_stop_loss(self, close, buyprice):
-		if buyprice == 0 or close == 0:
-			signal = 0
-		else :
-			if close > buyprice * 1.2:
-				signal = self.SELL
-			elif close < buyprice * 0.8:
-				signal = self.SELL
-			else:
-				signal = self.HOLD
+		#statistical indicator
+		self.OVERSOLD = -1
+		self.OVERBOUGHT = 1
+
+		#trend direction
+		self.DOWNTREND = -1
+		self.UPTREND = 1
+
+		#trend strength
+		self.WEAK = -1
+		self.STRONG =1
+
+		self.BUY = -1
+		self.SELL = 1
+
+		self.buythresh = self.BUY * 0.5
+		self.sellthresh = self.SELL * 0.5
+
+		self.trend_strenght_str = {self.WEAK: "WEAK", self.STRONG: "STRONG"}
+		self.trend_dir_str = {self.DOWNTREND: "DOWNTREND", self.NEUTRAL: "NEUTRAL", self.UPTREND: "UPTREND"}
+		self.rsi_str = {self.OVERSOLD: "OVERSOLD", self.OVERBOUGHT: "OVERBOUGHT"}
+		self.signal_str = {self.BUY: "BUY", self.SELL: "SELL", self.NEUTRAL: "NEUTRAL"}
+
+	def __trend_direction(self, close, sma20, sma50, sma100):
+		if close is None or sma20 is None or sma50 is None:
+			signal = self.NEUTRAL
+		elif close >= sma20 and close >= sma50 and close >= sma100:
+			signal = self.UPTREND
+		elif close < sma20 and close < sma50 and close < sma100:
+			signal = self.DOWNTREND
+		else:
+			signal = self.NEUTRAL
 
 		return signal
 
-	def __macd_zero_crossing(self, macdhist):
-		if macdhist is None:
-			signal = 0
+	def __trend_strength(self, adx):
+		if adx is None:
+			signal = self.NEUTRAL
 		else:
-			if self.prev_macdhist < 0 and macdhist >= 0:
-				signal = self.BUY
-			elif self.prev_macdhist >= 0 and macdhist < 0:
-				signal = self.SELL
+			if adx < 25:
+				signal = self.WEAK
+			elif adx > 25:
+				signal = self.STRONG
 			else:
-				signal = self.HOLD
-
-			self.prev_macdhist = macdhist
+				signal = self.NEUTRAL
 
 		return signal
 
 	def __rsi_out_of_band(self, rsi):
 		if rsi is None:
-			signal = 0
+			signal = self.NEUTRAL
 		else:
 			if rsi < 30:
-				signal = self.BUY
+				signal = self.OVERSOLD
 			elif rsi > 70:
-				signal = self.SELL
+				signal = self.OVERBOUGHT
 			else:
-				signal = self.HOLD
-
-		return signal
-
-	def __boll_out_of_band(self, close, bollbot, bolltop):
-		if close is None or bollbot is None or bolltop is None:
-			signal = 0
-		else:
-			if close < bollbot:
-				signal = self.BUY
-			elif close > bolltop:
-				signal = self.SELL
-			else:
-				signal = self.HOLD
+				signal = self.NEUTRAL
 
 		return signal
 
 	def __cci_out_of_band(self, cci):
 		if cci is None:
-			signal = 0
+			signal = self.NEUTRAL
 		else:
 			if cci < -100:
-				signal = self.BUY
+				signal = self.OVERSOLD
 			elif cci > 100:
-				signal = self.SELL
+				signal = self.OVERBOUGHT
 			else:
-				signal = self.HOLD
+				signal = self.NEUTRAL
 
 		return signal
 
 	def __stoch_out_of_band(self, stoch):
 		if stoch is None:
-			signal = 0
+			signal = self.NEUTRAL
 		else:
-			if stoch < 20:
-				signal = self.BUY
-			elif stoch > 80:
-				signal = self.SELL
+			if stoch < 30:
+				signal = self.OVERSOLD
+			elif stoch > 70:
+				signal = self.OVERBOUGHT
 			else:
-				signal = self.HOLD
-
-		return signal
-
-	def __ema_trend(self, ema):
-		if ema is None or self.prev_ema is None:
-			signal = 0
-		else:
-
-			#trade only when ema 200 is going up.
-			ema_trend = ema - self.prev_ema
-			if ema_trend > 0:
-				signal = self.BUY
-			elif ema_trend < 0:
-				signal = self.HOLD
-			else:
-				signal = 0
-
-			self.prev_ema = ema
-
-		return signal
-
-	def __adx_out_of_band(self, ema, adx):
-		if adx is None or ema is None:
-			signal = 0
-		else:
-			if adx > 25 and ema == 1 :
-				signal = self.SELL
-			elif adx > 25 and ema == -1:
-				signal = self.SELL
-			else:
-				signal = self.HOLD
+				signal = self.NEUTRAL
 
 		return signal
 
 	def __print_data(self):
-		print("\n%s [%s] close %8.3f, volume %8d, ema %8.2f macd %8.3f, macd_signal %8.3f, macdhist %8.3f, rsi %8.3f, cci %8.3f, bolltop %8.3f, bollbot %8.3f, adx %8.3f, stoch %8.3f " % (
-				self.tstamp, self.stock.symbol, self.close, self.volume, self.ema, self.macd, self.macd_signal,
-				self.macdhist, self.rsi, self.cci, self.bolltop, self.bollbot, self.adx, self.stoch))
+		self.mylogger.logger.debug("%s [%s] positions %d, avg_price %8.3f, close %8.3f, change %8.2f%%, volume %8d" % (
+				self.tstamp, self.stock.symbol, self.stock.totalbuysize, self.avgprice, self.close, self.stock.change, self.volume))
+		self.mylogger.logger.debug("%s [%s] adx %8.3f, sma20 %8.3f, sma50 %8.3f, sma100 %8.3f " % (
+				self.tstamp, self.stock.symbol, self.adx, self.sma20, self.sma50, self.sma100))
+		self.mylogger.logger.debug("%s [%s] rsi %8.3f, cci %8.3f, stoch %8.3f " % (
+				self.tstamp, self.stock.symbol, self.rsi, self.cci, self.stoch))
+		self.mylogger.logger.debug("%s [%s] doji %d,  hammer: %d, eveningstar %d, handingmand %d, shootingstar %d " % (
+				self.tstamp, self.stock.symbol, self.doji, self.hammer, self.eveningstar, self.hangingman, self.shootingstar))
 
 	def __print_vote(self):
-		print("%s [%s] [%d/%d](%.2f) position %d, ema_direction %3d, profit_loss_vote %3d, rsi_out_of_band %3d, boll_out_off_band %3d, cci %3d, adx %3d stoch %3d" % (
-				self.tstamp, self.stock.symbol, self.total_vote, self.nb_strategies, self.vote, self.stock.position, self.ema_vote, self.profit_loss_vote, self.rsi_vote, self.boll_vote, self.cci_vote, self.adx_vote, self.stoch_vote))
+		self.mylogger.logger.debug("%s [%s] trend_dir %s, trend_str %s, rsi_vote %d, cci_vote %d, stoch_vote %d" % (
+				self.tstamp, self.stock.symbol, self.trend_dir_str[self.trend_dir], self.trend_strenght_str[self.trend_str], self.rsi_vote, self.cci_vote, self.stoch_vote))
+
+	def __print_signal(self):
+		self.mylogger.logger.debug("%s [%s] vote %.2f, buy thresh %.2f, sell thresh %.2f, signal %s" % (
+				self.tstamp, self.stock.symbol, self.vote, self.buythresh, self.sellthresh, self.signal_str[self.signal]))
+
+		if self.signal == self.BUY:
+			signal_str = "BUY"
+		elif self.signal == self.SELL:
+			signal_str = "SELL"
+		else:
+			signal_str = "NEUTRAL"
+
+		self.mylogger.logger.debug("%s [%s] SIGNAL: %s" % (
+				self.tstamp, self.stock.symbol, signal_str))
 
 	def run_strategy(self, tstamp, row, stock):
 		self.stock = stock
 		self.tstamp = tstamp
 		self.close = row['4. close']
 		self.volume = row['5. volume']
-		self.macdhist = row['trend_macd_diff']
-		self.macd = row['trend_macd']
-		self.macd_signal = row['trend_macd_signal']
 		self.rsi = row['momentum_rsi']
 		self.cci = row['trend_cci']
-		self.bolltop = row['volatility_bbh']
-		self.bollbot = row['volatility_bbl']
-		self.adx = row['trend_adx']
-		self.ema = row['ema']
 		self.stoch = row['momentum_stoch_signal']
-
-		self.__print_data()
+		self.sma20 = row['sma20']
+		self.sma50 = row['sma50']
+		self.sma100 = row['sma100']
+		self.adx = row['trend_adx']
+		self.doji = row['CDLDOJI']
+		self.hammer = row['CDLHAMMER']
+		self.eveningstar = row['CDLEVENINGSTAR']
+		self.hangingman = row['CDLHANGINGMAN']
+		self.shootingstar = row['CDLSHOOTINGSTAR']
+		self.avgprice = self.stock.avgbuyprice
 
 		self.signal = 0
 		self.nb_strategies = 0
-		self.ema_vote = 0
-		self.profit_loss_vote = 0
-		self.macd_vote = 0
 		self.rsi_vote = 0
-		self.boll_vote = 0
 		self.cci_vote = 0
-		self.adx_vote = 0
 		self.stoch_vote = 0
 		self.total_vote = 0
 
-		#self.profit_loss_vote = self.take_profit_stop_loss(self.close, stock.avgbuyprice)
-		#self.nb_strategies += 1
-
-		#self.macd_vote = self.macd_zero_crossing(self.macdhist)
-		#self.nb_strategies += 1
+		self.trend_dir = self.__trend_direction(self.close, self.sma20, self.sma50, self.sma100)
+		self.trend_str = self.__trend_strength(self.adx)
 
 		self.rsi_vote = self.__rsi_out_of_band(self.rsi)
-		self.nb_strategies += 1
-
-		self.boll_vote = self.__boll_out_of_band(self.close, self.bollbot, self.bolltop)
 		self.nb_strategies += 1
 
 		self.cci_vote = self.__cci_out_of_band(self.cci)
@@ -177,23 +161,37 @@ class MMStrategy():
 		self.stoch_vote = self.__stoch_out_of_band(self.stoch)
 		self.nb_strategies += 1
 
-		#self.ema_vote = self.__ema_trend(self.ema)
-		#self.nb_strategies += 1
-
-		self.ema_vote = self.__ema_trend(self.ema)
-		self.adx_vote = self.__adx_out_of_band(self.ema_vote, self.adx)
-		self.nb_strategies += 1
-
-		self.total_vote = self.rsi_vote + self.boll_vote + self.cci_vote + self.adx_vote + self.stoch_vote
+		self.total_vote = self.rsi_vote + self.cci_vote + self.stoch_vote
 		self.vote = self.total_vote / self.nb_strategies
 
-		self.__print_vote()
-
-		if self.vote > self.BUY * 0.5:
+		#BUY LOW: When trend is DOWN and STRONG in OVERSOLD position
+		if self.trend_dir is self.DOWNTREND and self.trend_str == self.STRONG and self.vote <= self.buythresh:
+		#if self.trend_dir is not self.UPTREND and self.trend_str == self.STRONG and self.vote <= self.buythresh:
+			self.mylogger.logger.debug("%s [%s] [BUY] OVERSOLD CONDITION MET" % (self.tstamp, self.stock.symbol))
 			self.signal = self.BUY
-		elif self.vote < self.SELL * 0.75:
+
+		# SELL: While trend is UP and STRONG in OVERBOUGHT position
+		elif self.trend_dir is self.UPTREND and self.trend_str == self.STRONG and self.vote >= self.sellthresh:
+		#elif self.trend_dir is not self.DOWNTREND  and self.trend_str == self.STRONG and self.vote >= self.sellthresh:
+			self.mylogger.logger.debug("%s [%s] [SELL] OVERBOUGHT CONDITION MET" % (self.tstamp, self.stock.symbol))
 			self.signal = self.SELL
+
+		# SELL: TAKE PROFIT
+		elif self.stock.change is not None and self.stock.change > 20:
+			self.mylogger.logger.debug("%s [%s] [SELL] TAKE PROFIT CONDITION MET" % (self.tstamp, self.stock.symbol))
+			self.signal = self.SELL
+
+		# SELL: STOP LOSS
+		elif self.stock.change is not None and self.stock.change < -20:
+			self.mylogger.logger.debug("%s [%s] [BUY] STOP LOSS CONDITION MET" % (self.tstamp, self.stock.symbol))
+			self.signal = self.SELL
+
+		#HOLD: Do nothing rest of the time
 		else:
-			self.signal = 0
+			self.signal = self.NEUTRAL
+
+		self.__print_data()
+		self.__print_vote()
+		self.__print_signal()
 
 		return self.signal, abs(self.vote)

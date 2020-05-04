@@ -10,98 +10,86 @@ from ib.ext.Contract import Contract
 from ib.ext.Order import Order
 import random as random
 import uuid
-
+import ezibpy
 
 class IBBroker(object):
-    conn = Connection.create(port=4001, clientId=100)
-    #conn.register(my_account_handler, 'UpdateAccountValue')
-    #conn.register(my_tick_handler, message.tickSize, message.tickPrice)
-    conn.connect()
+    conn = ezibpy.ezIBpy()
+    conn.connect(clientId=100, host="localhost", port=4001)
+    totalbudget = 0
+    totalinvested = 0
 
-    def __init__(self, cash, logger):
-        self.budget = cash
-        self.cash = cash
+    def __init__(self, totalbudget, quota, logger):
+        IBBroker.totalbudget = totalbudget
+        self.quota = quota
+        self.cash = quota
         self.invested = 0
         self.profit = 0
         self.perf = 0
         self.mylogger = logger
+        self.value = 0
 
-    #def my_account_handler( msg):
-    #    print(msg)
-
-    #def my_tick_handler(msg):
-    #    print(msg)
-
-    def __make_contract(self, symbol, sec_type, exch, prim_exch, curr):
-        contract = Contract()
-        contract.m_symbol = symbol
-        contract.m_secType = sec_type
-        contract.m_exchange = exch
-        contract.m_primaryExch = prim_exch
-        contract.m_currency = curr
-        print("Make contract %s, sec_type %s, exch %s, prim_exch %s, curr %s" %(symbol, sec_type, exch, prim_exch, curr))
-        return contract
-
-    def __make_order(self, action, quantity, price=None):
-        if price is not None:
-            order = Order()
-            order.m_orderType = 'LMT'
-            order.m_totalQuantity = quantity
-            order.m_action = action
-            order.m_lmtPrice = price
-
-        else:
-            order = Order()
-            order.m_orderType = 'MKT'
-            order.m_totalQuantity = quantity
-            order.m_action = action
-
-        print("Order action %s, type %s, qty %s, lmt %8.3f" % (action, order.m_orderType, order.m_totalQuantity, order.m_lmtPrice))
-        return order
+        print("[IBK] quota %.3f, cash %.3f" % (self.quota, self.cash))
 
     def buy_shares(self, stock, nb_shares):
         nb_shares = math.floor(nb_shares)
         if nb_shares == 0:
-            return
+            return -1
 
-        id = int(uuid.uuid1().int % 999)
-        print("IBK UUID:%d, BUY %d SHARES OF %s" % (id, nb_shares, stock.symbol))
-        for i in range(1,5):
-            cont = self.__make_contract(stock.symbol, 'STK', 'SMART', 'SMART', 'USD')
-            offer = self.__make_order('BUY', nb_shares, stock.close)
-            IBBroker.conn.placeOrder(id, cont, offer)
-            time.sleep(5)
+        if IBBroker.totalinvested + nb_shares * stock.close > IBBroker.totalbudget:
+            print("OVER BUDGET, CANNOT BUY %s" % stock.symbol)
+            return -1
 
-        stock.buy(nb_shares)
+        if self.cash < nb_shares * stock.close:
+            self.mylogger.logger.debug("NOT ENOUGH CASH LEFT %.3f$ TO BUY %.3f$" % (self.cash, nb_shares * stock.close))
+            return -1
+
+        if stock.totalbuysize * stock.avgbuyprice > self.quota:
+            self.mylogger.logger.debug("HAVE %.3f$, ABOVE QUOTA OF %.3f$" % (stock.totalbuysize * stock.avgbuyprice, self.quota))
+            return -1
+
+        contract = IBBroker.conn.createStockContract(stock.symbol)
+        order = IBBroker.conn.createOrder(quantity=nb_shares)
+        id = IBBroker.conn.placeOrder(contract, order)
+        self.mylogger.logger.debug("IBK ORDER ID:%d, BUY %d SHARES @ %.3f$ OF %s" % (id, nb_shares,  stock.close, stock.symbol))
+        time.sleep(5)
+
+        result = stock.buy(nb_shares)
         self.cash -= stock.close * nb_shares
         self.invested = stock.avgbuyprice * stock.totalbuysize
-
-    def buy_dollar_amount(self, stock, dollar_amount):
-        if self.cash < dollar_amount:
-            return
-
-        nb_shares = math.floor(dollar_amount / stock.close)
-        self.buy_shares(stock, nb_shares)
+        self.calculate_profit(stock)
+        IBBroker.totalinvested += self.invested
+        return result
 
     def sell_shares(self, stock, nb_shares):
         nb_shares = math.floor(nb_shares)
         if nb_shares == 0:
-            return
+            return -1
 
-        id = int(uuid.uuid1().int % 999)
-        print("IBK ID:%d, SELL %d SHARES OF %s" % (id, nb_shares, stock.symbol))
-        for i in range(1, 5):
-            cont = self.__make_contract(stock.symbol, 'STK', 'SMART', 'SMART', 'USD')
-            offer = self.__make_order('SELL', nb_shares, stock.close)
-            IBBroker.conn.placeOrder(id, cont, offer)
-            time.sleep(5)
+        if self.invested < nb_shares * stock.avgbuyprice:
+            return -1
 
-        stock.sell(nb_shares)
+        contract = IBBroker.conn.createStockContract(stock.symbol)
+        order = IBBroker.conn.createOrder(quantity=nb_shares * -1)
+        id = IBBroker.conn.placeOrder(contract, order)
+        self.mylogger.logger.debug("IBK ORDER ID: %d, SELL %d SHARES @ %.3f$ OF %s" % (id, nb_shares, stock.close, stock.symbol))
+        time.sleep(5)
+
+        result = stock.sell(nb_shares)
         self.cash += stock.close * nb_shares
         self.invested = stock.avgbuyprice * stock.totalbuysize
+        self.calculate_profit(stock)
+        IBBroker.totalinvested -= self.invested
+        return result
+
+    def calculate_profit(self, stock):
+        self.profit = (self.cash + self.invested) - self.quota
+        self.value = stock.totalbuysize * stock.close
+        self.unrzprofit = self.value - self.invested
+        self.perf = self.profit / self.quota * 100
 
     def print_balance(self, stock):
-        self.profit = (self.cash + self.invested) - self.budget
-        self.value = stock.totalbuysize * stock.close
-        self.perf = self.profit / self.budget * 100
-        self.mylogger.logger.debug("[%s] CASH = %8.2f$, INVESTED = %8.2f$, VALUE = %8.2f PROFIT = %8.2f$, PERF = %8.2f%%" % (stock.symbol, self.cash, self.invested, self.value, self.profit, self.perf))
+        self.calculate_profit(stock)
+        self.mylogger.logger.debug(
+            "%s [%6s] #TRANSAC = %d , CASH = %8.2f$, INVESTED = %8.2f$, VALUE = %8.2f RLZ PROFIT = %8.2f$, UNRLZ PROFIT = %8.2f$, PERF = %8.2f%%" % (
+            stock.tstamp, stock.symbol, stock.transaction, self.cash, self.invested, self.value, self.profit,
+            self.unrzprofit, self.perf))

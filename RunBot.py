@@ -5,8 +5,9 @@ from pandas.plotting import register_matplotlib_converters
 import time
 import argparse
 from MMBot import MMBot
-from SimpleBot import SimpleBot
 from BotManager import BotManager
+from FinvizScreener import FinvizScreener
+
 
 if __name__ == '__main__':
 	bots = []
@@ -17,8 +18,8 @@ if __name__ == '__main__':
 	register_matplotlib_converters()
 
 	ap = argparse.ArgumentParser()
-	ap.add_argument("-k", "--key", required=False, help="api key")
 	ap.add_argument("-b", "--budget", required=False, help="allocated budget")
+	ap.add_argument("-q", "--quota", required=False, help="quota per stock")
 	ap.add_argument("-w", "--watchlist", required=False, help="symbols to trade")
 	ap.add_argument("-p", "--period", required=False, help="time interval in min 1, 5, 15, 60")
 	ap.add_argument("-d", "--daily", required=False, help="use daily market data")
@@ -27,22 +28,27 @@ if __name__ == '__main__':
 	ap.add_argument("-n", "--botname", required=False, help="botname")
 	ap.add_argument("-i", "--ibk", required=False, help="use interactive broker")
 	ap.add_argument("-s", "--since", required=False, help="since")
-	args = vars(ap.parse_args())
+	ap.add_argument("-g", "--debug", required=False, help="debug")
+	ap.add_argument("-f", "--finviz", required=False, help="finviz")
+	ap.add_argument("-l", "--liquidate", required=False, help="liquidate")
+	ap.add_argument("-o", "--watchlistonly", required=False, help="watchlist only")
 
-	if args['key']:
-		apikey = args['key']
-	else:
-		apikey = 'LCN3E4TILGN8BPA7'
+	args = vars(ap.parse_args())
 
 	if args['budget']:
 		budget = int(args['budget'])
 	else:
-		budget = 2000
+		budget = 5000
+
+	if args['quota']:
+		quota = int(args['quota'])
+	else:
+		quota = 2000
 
 	if args['watchlist']:
 		watchlist = args['watchlist'].split(",")
 	else:
-		watchlist = ['AAPL', 'MSFT', 'AMZN', 'GOOG', 'TSLA']
+		watchlist = []
 
 	if args['daily']:
 		daily = True
@@ -79,9 +85,62 @@ if __name__ == '__main__':
 	else:
 		since = '2019-01-01'
 
-	totalbudget = len(watchlist) * budget
-	print("CREATE BOT MANAGER %s" % botname)
-	botManager = BotManager(botname=botname, watchlist=watchlist, key=apikey, budget=totalbudget, period=period, live=live, debug=False, email=email, daily=daily, ibk=ibk, since=since)
+	if args['debug']:
+		debug = True
+	else:
+		debug = False
+
+	if args['liquidate']:
+		liquidate = True
+	else:
+		liquidate = False
+
+	if args['watchlistonly']:
+		watchlistonly = True
+	else:
+		watchlistonly = False
+
+	if args['finviz']:
+		nb_stocks = int(args['finviz'])
+		screener = FinvizScreener()
+		ticker_pool = []
+		gainers = []
+		N = 100
+
+		print("=== TOP %d BIGGEST MARKET CAP ===" % N)
+		stock_list = screener.top_N_biggest(N)
+		for stock in stock_list:
+			ticker_pool.append(stock['Ticker'])
+
+		print("=== TOP %d GAINER ===" % nb_stocks)
+		stock_list = screener.top_N_gainer(nb_stocks, stock_list=ticker_pool)
+		for stock in stock_list:
+			watchlist.append(stock['Ticker'])
+
+		print("=== TOP %d HIGH VOLUME ===" % nb_stocks)
+		stock_list = screener.top_N_high_volume(nb_stocks, stock_list=ticker_pool)
+		for stock in stock_list:
+			watchlist.append(stock['Ticker'])
+
+		print("=== TOP %d HIGH VOLATILE ===" % nb_stocks)
+		stock_list = screener.top_N_volatility(nb_stocks, stock_list=ticker_pool)
+		for stock in stock_list:
+			watchlist.append(stock['Ticker'])
+
+		#print("=== TOP %d TANKING ===" % nb_stocks)
+		#stock_list = screener.top_N_tanking(nb_stocks, stock_list=ticker_pool)
+		#for stock in stock_list:
+		#	watchlist.append(stock['Ticker'])
+
+		watchlist = list(dict.fromkeys(watchlist))
+		print("screener watchlist")
+		print(watchlist)
+
+	else:
+		finviz = None
+
+	print("CREATE BOT MANAGER %s WITH %d BUDGET" % (botname, budget))
+	botManager = BotManager(botname=botname, watchlist=watchlist, budget=budget, quota=quota, period=period, live=live, debug=debug, email=email, daily=daily, ibk=ibk, since=since, liquidate=liquidate, watchlistonly=watchlistonly)
 
 	print("CREATING ALL BOTS")
 	botManager.create_bots()

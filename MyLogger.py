@@ -10,9 +10,9 @@ class MyLogger(object):
 
 	def setup_logger(self, name, log_file, level=logging.DEBUG):
 		log_setup = logging.getLogger(name)
-		fileHandler = logging.FileHandler(log_file, mode='w')
-		streamHandler = logging.StreamHandler()
+		fileHandler = logging.FileHandler(log_file, mode='a+')
+		#streamHandler = logging.StreamHandler()
 		log_setup.setLevel(level)
 		log_setup.addHandler(fileHandler)
-		log_setup.addHandler(streamHandler)
+		#log_setup.addHandler(streamHandler)
 		return log_setup
