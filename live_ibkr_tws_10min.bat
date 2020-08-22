@@ -1,0 +1,1 @@
+python.exe RunBot.py --maxbots 15 --watchlist AAPL,MSFT,AMZN,GOOG,GOOGL,FB,BABA,JPM,JNJ,MA,WMT,PG,BAC,TSM,TSLA,V,T,TBB,UNH,M,HD,DIS,KO,VZ,MRK,CVX,CSCO,NVDA,AMD,WFC,BA,AAL,OXY,GE,UBER,BYND,PSX,QSR,SPG,DD,HLT,MAR,MRNA,SBUX,MA,V,T,INT,DIS,MS,GIS,SQ,GM --period 5 --botname MMBot --marketdata ibkr --brokertype ibkr --email True --quota 2000 --budget 50000

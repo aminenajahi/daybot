@@ -1,0 +1,1 @@
+python.exe RunBot.py --maxbots 10 --finviz 5 --period 5 --watchlist KIM,KSS,NKLA,AAPL,MSFT,AMZN,GOOG,GOOGL,FB,BABA,JPM,JNJ --rth False --botname MMBot --marketdata ibkr --brokertype ibkr  --quota 2000 --budget 25000 --email True

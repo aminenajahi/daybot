@@ -15,6 +15,8 @@ import ezibpy
 class IBBroker(object):
     conn = ezibpy.ezIBpy()
     conn.connect(clientId=100, host="localhost", port=4001)
+    conn.requestPositionUpdates(subscribe=True)
+    conn.requestAccountUpdates(subscribe=True)
     totalbudget = 0
     totalinvested = 0
 
@@ -27,16 +29,24 @@ class IBBroker(object):
         self.perf = 0
         self.mylogger = logger
         self.value = 0
+        self.buypending = False
+        self.sellpending = False
 
         print("[IBK] quota %.3f, cash %.3f" % (self.quota, self.cash))
 
-    def buy_shares(self, stock, nb_shares):
+    def buy_short_shares(self, stock, nb_shares, price=None):
+        return self.sell_shares(stock, nb_shares, price)
+
+    def sell_short_shares(self, stock, nb_shares, price=None):
+        return self.buy_shares(stock, nb_shares, price)
+
+    def buy_shares(self, stock, nb_shares, price=None):
         nb_shares = math.floor(nb_shares)
         if nb_shares == 0:
             return -1
 
         if IBBroker.totalinvested + nb_shares * stock.close > IBBroker.totalbudget:
-            print("OVER BUDGET, CANNOT BUY %s" % stock.symbol)
+            self.mylogger.logger.debug("OVER BUDGET, CANNOT BUY %s" % stock.symbol)
             return -1
 
         if self.cash < nb_shares * stock.close:
@@ -47,11 +57,21 @@ class IBBroker(object):
             self.mylogger.logger.debug("HAVE %.3f$, ABOVE QUOTA OF %.3f$" % (stock.totalbuysize * stock.avgbuyprice, self.quota))
             return -1
 
+        if self.buypending == True and self.buyorder['status'] != "FILLED":
+            self.mylogger.logger.debug("BUY ORDER PENDING")
+            return -1
+
+        self.buypending = False
         contract = IBBroker.conn.createStockContract(stock.symbol)
-        order = IBBroker.conn.createOrder(quantity=nb_shares)
-        id = IBBroker.conn.placeOrder(contract, order)
-        self.mylogger.logger.debug("IBK ORDER ID:%d, BUY %d SHARES @ %.3f$ OF %s" % (id, nb_shares,  stock.close, stock.symbol))
+        if price is None:
+            self.buyorder = IBBroker.conn.createOrder(quantity=nb_shares, rth=True)
+        else:
+            self.buyorder = IBBroker.conn.createOrder(quantity=nb_shares, price=price, rth=True)
+        id = IBBroker.conn.placeOrder(contract, self.buyorder)
+        self.mylogger.logger.debug("%s [%s] IBK ORDER ID:%d, BUY %d SHARES @ %.3f$ OF %s" % (datetime.now(), stock.symbol, id, nb_shares,  stock.close, stock.symbol))
+        self.mylogger.tradebook.debug("%s [%s] IBK ORDER ID:%d, BUY %d SHARES @ %.3f$ OF %s" % (datetime.now(), stock.symbol, id, nb_shares,  stock.close, stock.symbol))
         time.sleep(5)
+        self.buypending = True
 
         result = stock.buy(nb_shares)
         self.cash -= stock.close * nb_shares
@@ -60,7 +80,7 @@ class IBBroker(object):
         IBBroker.totalinvested += self.invested
         return result
 
-    def sell_shares(self, stock, nb_shares):
+    def sell_shares(self, stock, nb_shares, price=None):
         nb_shares = math.floor(nb_shares)
         if nb_shares == 0:
             return -1
@@ -68,11 +88,21 @@ class IBBroker(object):
         if self.invested < nb_shares * stock.avgbuyprice:
             return -1
 
+        if self.sellpending == True and self.sellorder['status'] != "FILLED":
+            self.mylogger.logger.debug("SELL ORDER PENDING")
+            return -1
+
+        self.sellpending = False
         contract = IBBroker.conn.createStockContract(stock.symbol)
-        order = IBBroker.conn.createOrder(quantity=nb_shares * -1)
-        id = IBBroker.conn.placeOrder(contract, order)
-        self.mylogger.logger.debug("IBK ORDER ID: %d, SELL %d SHARES @ %.3f$ OF %s" % (id, nb_shares, stock.close, stock.symbol))
+        if price is None:
+            self.sellorder = IBBroker.conn.createOrder(quantity=nb_shares * -1, rth=True)
+        else:
+            self.sellorder = IBBroker.conn.createOrder(quantity=nb_shares * -1, price=price, rth=True)
+        id = IBBroker.conn.placeOrder(contract, self.sellorder)
+        self.mylogger.logger.debug("%s [%s] ORDER ID: %d, SELL %d SHARES @ %.3f$ OF %s" % (datetime.now(), stock.symbol, id, nb_shares, stock.close, stock.symbol))
+        self.mylogger.tradebook.debug("%s [%s] ORDER ID: %d, SELL %d SHARES @ %.3f$ OF %s" % (datetime.now(), stock.symbol, id, nb_shares, stock.close, stock.symbol))
         time.sleep(5)
+        self.sellpending = True
 
         result = stock.sell(nb_shares)
         self.cash += stock.close * nb_shares

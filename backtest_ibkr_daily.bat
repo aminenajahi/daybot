@@ -1,0 +1,1 @@
+python.exe RunBot.py --debug True --watchlist OXY --rth True --watchlistonly True --daily True --since 2020-07-01 --botname MMBot --marketdata ibkr --brokertype sim  --quota 2000 --budget 25000 --backtest True

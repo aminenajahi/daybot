@@ -1,0 +1,73 @@
+=== TOP 500 BIGGEST MARKET CAP ===
+=== TOP 10 GAINER ===
+No. | Ticker | Company                  | Sector            | Industry                            | Country | Market Cap | P/E    | Price  | Change | Volume    
+--- | ------ | ------------------------ | ----------------- | ----------------------------------- | ------- | ---------- | ------ | ------ | ------ | ----------
+1   | NKLA   | Nikola Corporation       | Consumer Cyclical | Auto Manufacturers                  | USA     | 12.25B     | 490.49 | 33.59  | 12.27% | 14,351,965
+2   | MRNA   | Moderna, Inc.            | Healthcare        | Biotechnology                       | USA     | 29.21B     | -      | 78.69  | 7.49%  | 18,288,419
+3   | NET    | Cloudflare, Inc.         | Technology        | Software - Infrastructure           | USA     | 11.06B     | -      | 37.53  | 5.07%  | 872,538   
+4   | NEM    | Newmont Corporation      | Basic Materials   | Gold                                | USA     | 52.79B     | 15.18  | 69.91  | 4.73%  | 3,887,696 
+5   | BIIB   | Biogen Inc.              | Healthcare        | Drug Manufacturers - General        | USA     | 44.09B     | 7.98   | 284.23 | 4.37%  | 640,405   
+6   | TER    | Teradyne, Inc.           | Technology        | Semiconductor Equipment & Materials | USA     | 14.27B     | 24.10  | 87.04  | 4.21%  | 438,149   
+7   | SWKS   | Skyworks Solutions, Inc. | Technology        | Semiconductors                      | USA     | 22.58B     | 28.64  | 137.14 | 4.20%  | 655,679   
+8   | XLNX   | Xilinx, Inc.             | Technology        | Semiconductors                      | USA     | 25.07B     | 33.02  | 106.88 | 4.11%  | 936,405   
+9   | KLAC   | KLA Corporation          | Technology        | Semiconductor Equipment & Materials | USA     | 31.62B     | 29.35  | 195.76 | 4.01%  | 486,131   
+10  | WY     | Weyerhaeuser Company     | Real Estate       | REIT - Specialty                    | USA     | 19.71B     | 53.72  | 27.12  | 3.87%  | 1,209,320 
+
+=== TOP 10 HIGH VOLUME ===
+No. | Ticker | Company                      | Sector            | Industry                       | Country | Market Cap | P/E    | Price  | Change | Volume    
+--- | ------ | ---------------------------- | ----------------- | ------------------------------ | ------- | ---------- | ------ | ------ | ------ | ----------
+1   | AMD    | Advanced Micro Devices, Inc. | Technology        | Semiconductors                 | USA     | 69.77B     | 170.52 | 69.56  | 0.23%  | 45,663,674
+2   | INTC   | Intel Corporation            | Technology        | Semiconductors                 | USA     | 255.73B    | 9.79   | 50.19  | -0.80% | 22,602,265
+3   | F      | Ford Motor Company           | Consumer Cyclical | Auto Manufacturers             | USA     | 27.76B     | -      | 6.89   | 0.07%  | 22,556,960
+4   | GE     | General Electric Company     | Industrials       | Specialty Industrial Machinery | USA     | 61.58B     | 11.19  | 6.84   | -0.25% | 20,954,938
+5   | MRNA   | Moderna, Inc.                | Healthcare        | Biotechnology                  | USA     | 29.21B     | -      | 78.69  | 7.49%  | 18,288,419
+6   | BAC    | Bank of America Corporation  | Financial         | Banks - Diversified            | USA     | 212.62B    | 11.70  | 24.23  | -0.51% | 16,572,092
+7   | NKLA   | Nikola Corporation           | Consumer Cyclical | Auto Manufacturers             | USA     | 12.25B     | 490.49 | 33.59  | 12.27% | 14,351,965
+8   | CCL    | Carnival Corporation & Plc   | Consumer Cyclical | Travel Services                | USA     | 10.77B     | -      | 14.18  | -4.18% | 11,848,066
+9   | WFC    | Wells Fargo & Company        | Financial         | Banks - Diversified            | USA     | 108.55B    | 30.01  | 25.76  | -1.90% | 10,639,432
+10  | AAPL   | Apple Inc.                   | Technology        | Consumer Electronics           | USA     | 1609.69B   | 29.04  | 376.54 | 1.64%  | 10,024,211
+
+=== TOP 10 HIGH VOLATILE ===
+No. | Ticker | Company                         | Sector                 | Industry                       | Country | Market Cap | P/E     | Price   | Change | Volume    
+--- | ------ | ------------------------------- | ---------------------- | ------------------------------ | ------- | ---------- | ------- | ------- | ------ | ----------
+1   | FE     | FirstEnergy Corp.               | Utilities              | Utilities - Diversified        | USA     | 14.84B     | 27.68   | 28.95   | -1.80% | 7,258,958 
+2   | MRNA   | Moderna, Inc.                   | Healthcare             | Biotechnology                  | USA     | 29.21B     | -       | 78.69   | 7.49%  | 18,288,419
+3   | NKLA   | Nikola Corporation              | Consumer Cyclical      | Auto Manufacturers             | USA     | 12.25B     | 490.49  | 33.59   | 12.27% | 14,351,965
+4   | TSLA   | Tesla, Inc.                     | Consumer Cyclical      | Auto Manufacturers             | USA     | 280.48B    | 729.28  | 1457.02 | 2.82%  | 4,348,978 
+5   | LVGO   | Livongo Health, Inc.            | Healthcare             | Medical Devices                | USA     | 10.89B     | -       | 110.19  | 0.97%  | 834,094   
+6   | DKNG   | DraftKings Inc.                 | Financial              | Shell Companies                | USA     | 12.69B     | 682.73  | 35.53   | -5.38% | 7,880,523 
+7   | TWLO   | Twilio Inc.                     | Communication Services | Internet Content & Information | USA     | 35.62B     | -       | 255.00  | 2.70%  | 490,648   
+8   | AMD    | Advanced Micro Devices, Inc.    | Technology             | Semiconductors                 | USA     | 69.77B     | 170.52  | 69.56   | 0.23%  | 45,663,674
+9   | ZM     | Zoom Video Communications, Inc. | Communication Services | Telecom Services               | USA     | 70.95B     | 1362.21 | 250.97  | 1.79%  | 838,591   
+10  | ZI     | ZoomInfo Technologies Inc.      | Technology             | Software - Application         | USA     | 15.91B     | -       | 40.84   | 3.16%  | 211,414   
+
+=== TOP 10 WEEKLY PERFORMER ===
+No. | Ticker | Company                          | Sector             | Industry                            | Country | Market Cap | P/E    | Price  | Change | Volume    
+--- | ------ | -------------------------------- | ------------------ | ----------------------------------- | ------- | ---------- | ------ | ------ | ------ | ----------
+1   | AMD    | Advanced Micro Devices, Inc.     | Technology         | Semiconductors                      | USA     | 69.77B     | 170.52 | 69.56  | 0.23%  | 45,663,674
+2   | HCA    | HCA Healthcare, Inc.             | Healthcare         | Medical Care Facilities             | USA     | 42.87B     | 12.94  | 125.26 | -0.20% | 451,320   
+3   | PHM    | PulteGroup, Inc.                 | Consumer Cyclical  | Residential Construction            | USA     | 11.07B     | 10.04  | 43.74  | 2.64%  | 990,688   
+4   | HAL    | Halliburton Company              | Energy             | Oil & Gas Equipment & Services      | USA     | 12.94B     | -      | 14.85  | 0.94%  | 4,347,088 
+5   | BBY    | Best Buy Co., Inc.               | Consumer Cyclical  | Specialty Retail                    | USA     | 24.82B     | 17.93  | 97.74  | 0.77%  | 460,109   
+6   | CINF   | Cincinnati Financial Corporation | Financial          | Insurance - Property & Casualty     | USA     | 13.29B     | 259.28 | 82.26  | -1.16% | 196,150   
+7   | PCAR   | PACCAR Inc                       | Industrials        | Farm & Heavy Construction Machinery | USA     | 29.75B     | 18.08  | 86.56  | 0.96%  | 232,787   
+8   | BKR    | Baker Hughes Company             | Energy             | Oil & Gas Equipment & Services      | USA     | 17.23B     | -      | 16.47  | 0.58%  | 927,320   
+9   | HSY    | The Hershey Company              | Consumer Defensive | Confectioners                       | USA     | 30.44B     | 28.56  | 144.64 | -0.71% | 142,004   
+10  | CAH    | Cardinal Health, Inc.            | Healthcare         | Medical Distribution                | USA     | 16.51B     | -      | 56.83  | 0.58%  | 301,904   
+
+=== TOP 10 MONTHLY PERFORMER ===
+No. | Ticker | Company                          | Sector                 | Industry                        | Country | Market Cap | P/E    | Price   | Change | Volume    
+--- | ------ | -------------------------------- | ---------------------- | ------------------------------- | ------- | ---------- | ------ | ------- | ------ | ----------
+1   | LVGO   | Livongo Health, Inc.             | Healthcare             | Medical Devices                 | USA     | 10.89B     | -      | 110.19  | 0.97%  | 834,094   
+2   | TSLA   | Tesla, Inc.                      | Consumer Cyclical      | Auto Manufacturers              | USA     | 280.48B    | 729.28 | 1457.02 | 2.82%  | 4,348,978 
+3   | IAC    | IAC/InterActiveCorp              | Communication Services | Internet Content & Information  | USA     | 10.66B     | 104.04 | 128.43  | 2.10%  | 153,480   
+4   | CINF   | Cincinnati Financial Corporation | Financial              | Insurance - Property & Casualty | USA     | 13.29B     | 259.28 | 82.26   | -1.16% | 196,150   
+5   | HCA    | HCA Healthcare, Inc.             | Healthcare             | Medical Care Facilities         | USA     | 42.87B     | 12.94  | 125.26  | -0.20% | 451,320   
+6   | AMD    | Advanced Micro Devices, Inc.     | Technology             | Semiconductors                  | USA     | 69.77B     | 170.52 | 69.56   | 0.23%  | 45,663,674
+7   | CVNA   | Carvana Co.                      | Consumer Cyclical      | Internet Retail                 | USA     | 25.20B     | -      | 150.44  | 1.40%  | 140,943   
+8   | QDEL   | Quidel Corporation               | Healthcare             | Diagnostics & Research          | USA     | 10.80B     | 124.76 | 264.21  | 3.40%  | 151,902   
+9   | PHM    | PulteGroup, Inc.                 | Consumer Cyclical      | Residential Construction        | USA     | 11.07B     | 10.04  | 43.74   | 2.64%  | 990,688   
+10  | APD    | Air Products and Chemicals, Inc. | Basic Materials        | Chemicals                       | USA     | 64.77B     | 33.80  | 295.63  | 1.41%  | 126,767   
+
+screener watchlist
+['NKLA', 'MRNA', 'NET', 'NEM', 'BIIB', 'TER', 'SWKS', 'XLNX', 'KLAC', 'WY', 'AMD', 'INTC', 'F', 'GE', 'BAC', 'CCL', 'WFC', 'AAPL', 'FE', 'TSLA', 'LVGO', 'DKNG', 'TWLO', 'ZM', 'ZI', 'HCA', 'PHM', 'HAL', 'BBY', 'CINF', 'PCAR', 'BKR', 'HSY', 'CAH', 'IAC', 'CVNA', 'QDEL', 'APD']

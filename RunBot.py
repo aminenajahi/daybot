@@ -3,11 +3,12 @@ from datetime import datetime
 import pandas as pd
 from pandas.plotting import register_matplotlib_converters
 import time
+import signal
 import argparse
 from MMBot import MMBot
 from BotManager import BotManager
 from FinvizScreener import FinvizScreener
-
+from Broker import Broker
 
 if __name__ == '__main__':
 	bots = []
@@ -26,12 +27,16 @@ if __name__ == '__main__':
 	ap.add_argument("-t", "--backtest", required=False, help="backtest")
 	ap.add_argument("-e", "--email", required=False, help="email")
 	ap.add_argument("-n", "--botname", required=False, help="botname")
-	ap.add_argument("-i", "--ibk", required=False, help="use interactive broker")
+	ap.add_argument("-k", "--brokertype", required=False, help="brokertype to use sim or ibkr")
 	ap.add_argument("-s", "--since", required=False, help="since")
 	ap.add_argument("-g", "--debug", required=False, help="debug")
 	ap.add_argument("-f", "--finviz", required=False, help="finviz")
 	ap.add_argument("-l", "--liquidate", required=False, help="liquidate")
 	ap.add_argument("-o", "--watchlistonly", required=False, help="watchlist only")
+	ap.add_argument("-m", "--marketdata", required=False, help="market data to use sim or ibkr")
+	ap.add_argument("-z", "--plot", required=False, help="plot graphs")
+	ap.add_argument("-r", "--rth", required=False, help="use outside trading hours")
+	ap.add_argument("-x", "--maxbots", required=False, help="maximum number of bots to run")
 
 	args = vars(ap.parse_args())
 
@@ -58,7 +63,7 @@ if __name__ == '__main__':
 	if args['period']:
 		period = args['period']
 	else:
-		period = 5
+		period = 30
 
 	if args['backtest']:
 		live = False
@@ -70,20 +75,30 @@ if __name__ == '__main__':
 	else:
 		email = False
 
+	if args['rth']:
+		rth = False
+	else:
+		rth = True
+
 	if args['botname']:
 		botname = args['botname']
 	else:
 		botname = 'SimpleBot'
 
-	if args['ibk']:
-		ibk = True
+	if args['brokertype']:
+		brokertype = args['brokertype']
 	else:
-		ibk = False
+		brokertype = "sim"
+
+	if args['marketdata']:
+		marketdata = args['marketdata']
+	else:
+		marketdata = "alpha"
 
 	if args['since']:
 		since = args['since']
 	else:
-		since = '2019-01-01'
+		since = '2020-01-01'
 
 	if args['debug']:
 		debug = True
@@ -101,48 +116,26 @@ if __name__ == '__main__':
 		watchlistonly = False
 
 	if args['finviz']:
+		print("Using Finviz screener")
 		nb_stocks = int(args['finviz'])
-		screener = FinvizScreener()
-		ticker_pool = []
-		gainers = []
-		N = 100
-
-		print("=== TOP %d BIGGEST MARKET CAP ===" % N)
-		stock_list = screener.top_N_biggest(N)
-		for stock in stock_list:
-			ticker_pool.append(stock['Ticker'])
-
-		print("=== TOP %d GAINER ===" % nb_stocks)
-		stock_list = screener.top_N_gainer(nb_stocks, stock_list=ticker_pool)
-		for stock in stock_list:
-			watchlist.append(stock['Ticker'])
-
-		print("=== TOP %d HIGH VOLUME ===" % nb_stocks)
-		stock_list = screener.top_N_high_volume(nb_stocks, stock_list=ticker_pool)
-		for stock in stock_list:
-			watchlist.append(stock['Ticker'])
-
-		print("=== TOP %d HIGH VOLATILE ===" % nb_stocks)
-		stock_list = screener.top_N_volatility(nb_stocks, stock_list=ticker_pool)
-		for stock in stock_list:
-			watchlist.append(stock['Ticker'])
-
-		#print("=== TOP %d TANKING ===" % nb_stocks)
-		#stock_list = screener.top_N_tanking(nb_stocks, stock_list=ticker_pool)
-		#for stock in stock_list:
-		#	watchlist.append(stock['Ticker'])
-
-		watchlist = list(dict.fromkeys(watchlist))
-		print("screener watchlist")
-		print(watchlist)
-
+		screener = FinvizScreener(nb_stocks)
 	else:
-		finviz = None
+		screener = False
 
-	print("CREATE BOT MANAGER %s WITH %d BUDGET" % (botname, budget))
-	botManager = BotManager(botname=botname, watchlist=watchlist, budget=budget, quota=quota, period=period, live=live, debug=debug, email=email, daily=daily, ibk=ibk, since=since, liquidate=liquidate, watchlistonly=watchlistonly)
+	if args['maxbots']:
+		maxbots = int(args['maxbots'])
+	else:
+		maxbots = 15
 
-	print("CREATING ALL BOTS")
+	if args['plot']:
+		plot = True
+	else:
+		plot = False
+
+	print("CREATE BOT MANAGER %s WITH %d BROKET BUDGET" % (botname, budget))
+	botManager = BotManager(botname=botname, watchlist=watchlist, budget=budget, quota=quota, period=period, live=live, debug=debug, email=email, daily=daily, brokertype=brokertype, since=since, marketdata=marketdata, screener=screener, liquidate=liquidate, watchlistonly=watchlistonly, rth=rth, maxbots=maxbots)
+
+	print("CREATING ALL BOTS...")
 	botManager.create_bots()
 
 	print("STARTING ALL BOTS")
@@ -151,11 +144,15 @@ if __name__ == '__main__':
 	print("STOPPING ALL BOTS")
 	botManager.stop_bot()
 
-	print("BALANCE OF ALL BOTS")
-	botManager.printbalance_bot()
+	print("BOT RESULTS")
+	botManager.print_bot_balance()
+	
+	print("TOTAL BROKER")
+	Broker.print_total()
 
-	print("TOTAL BOT MANAGER RETURNS")
-	botManager.print_total_return()
+	if plot is True:
+		print("PLOT DATA")
+		botManager.plot_bot()
 
 	time.sleep(5)
 	print("END OF PROGRAM")

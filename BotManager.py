@@ -8,10 +8,12 @@ from MMBot import MMBot
 from Broker import Broker
 from IBBroker import IBBroker
 from MyLogger import MyLogger
+from Market import Market
+from IBMarket import IBMarket
 
 class BotManager(object):
 
-	def __init__(self, botname, watchlist, budget, quota, period, live, debug, since, email=False, daily=False, ibk=False, liquidate=False, watchlistonly=False):
+	def __init__(self, botname, watchlist, budget, quota, period, live, debug, since, marketdata, screener=False, email=False, daily=False, brokertype=False, liquidate=False, watchlistonly=False, rth=False, maxbots=False):
 		self.botname = botname
 		self.budget = budget
 		self.cash = budget
@@ -23,42 +25,82 @@ class BotManager(object):
 		self.email = email
 		self.bots = []
 		self.quota = quota
-		self.ibk = ibk
+		self.brokertype = brokertype
 		self.since = since
 		self.liquidate = liquidate
 		self.watchlistonly = watchlistonly
+		self.marketdata = marketdata
+		self.screener = screener
+		self.rth = rth
+		self.maxbots = maxbots
 
 	def create_mmbot(self, symbol):
-		print("LOAD BOT %s FOR %s WITH %d$ QUOTA" % (self.botname, symbol, self.quota))
-		mylogger = MyLogger(symbol)
+		print("CREATE MMBOT %s FOR %s WITH %d$ QUOTA TO RUN LIVE:%d" % (self.botname, symbol, self.quota, self.live))
+		mylogger = MyLogger(symbol, self.live)
 
-		if self.ibk == False:
-			# use simulation broker
-			broker = Broker(self.budget, self.quota, mylogger)
-		else:
-			#use IBK broker
+		if self.brokertype == "ibkr":
+			print("CREATE IBKR BROKER")
 			broker = IBBroker(self.budget, self.quota, mylogger)
+		else:
+			print("CREATE SIM MARKET")
+			broker = Broker(self.budget, self.quota, mylogger)
+
+		if self.marketdata == "ibkr":
+			print("CREATE IBKR MARKET DATA")
+			market = IBMarket(self.rth)
+		else:
+			print("CREATE ALPHA VANTAGE MARKER DATA")
+			market = Market()	
 
 		# create and add bot to list of bots
 		self.bots.append(
 			MMBot(budget=self.quota, symbol=symbol, period=self.period, live=self.live,
 				  debug=self.debug,
-				  email=self.email, daily=self.daily, broker=broker, mylogger=mylogger, since=self.since,
+				  email=self.email, daily=self.daily, broker=broker,  market=market, mylogger=mylogger, since=self.since,
 				  liquidate=self.liquidate))
 
 	def create_bots(self):
-		#load existing position from IBK
-		if self.ibk == True and self.watchlistonly is False:
-			print("LOAD BOTS FROM EXISTING BROKER POSITIONS")
-			for symbol in IBBroker.conn.portfolio:
-				if symbol not in self.watchlist:
-					if self.botname == "MMBot":
-						self.create_mmbot(symbol)
-
-		print("CREATE BOTS FROM WATCHLIST")
+		# load posisiton from watchlist only
+		if self.watchlistonly is not False:
+			print("WATCHLIST ONLY %s" % self.watchlistonly)
+		else:
+			if self.screener is not False:
+				print(self.screener)
+				#screenerlist = self.screener.getDailyAlphaFromBigCaps()
+				screenerlist = self.screener.getCrossingSMA()
+				print("LOAD SYMBOLS FROM SCREENER")
+				print(screenerlist)
+				for symbol in screenerlist:
+					self.watchlist.append(symbol)
+			
+			if self.brokertype == "ibkr":
+				print("LOAD SYMBOLS FROM EXISTING BROKER POSITIONS")
+				print(IBBroker.conn.positions)
+				for symbol in IBBroker.conn.positions:
+					self.watchlist.append(symbol)
+		
+		unique_list = []
 		for symbol in self.watchlist:
+			if symbol not in unique_list:
+				print(symbol)
+				unique_list.append(symbol)
+		
+		if self.maxbots != False:
+			print("TRIM BOTS TO %d FIRST ONES" % self.maxbots)
+			unique_list = unique_list[:self.maxbots]
+
+		print("LOAD BOTS FROM UNIQUE WATCHLIST")
+		print(unique_list)
+		for symbol in unique_list:
 			if self.botname == "MMBot":
 				self.create_mmbot(symbol)
+
+
+	def run_bots(self):
+		for bot in self.bots:
+			print("RUN BOT FOR %s" % bot.symbol)
+			bot.run_bot()
+			time.sleep(3)
 
 	def start_bots(self):
 		for bot in self.bots:
@@ -72,41 +114,12 @@ class BotManager(object):
 			bot.stop_bot()
 			time.sleep(3)
 
-	def printbalance_bot(self):
+	def print_bot_balance(self):
 		for bot in self.bots:
+			print("TRADES FOR BOT %s" % bot.symbol)
 			bot.print_balance()
-			time.sleep(3)
-
-	def print_total_return(self):
-		totalbudget = 0
-		totalinvested = 0
-		totalpotvalue = 0
-		totalpotprofit = 0
-		totalperf = 0
-		totalrlzprofit = 0
-		totalrealperf = 0
-		totalunrzperf = 0
-		totalvalue = 0
-		totalunrzprofit = 0
+			print("===============================")
+	
+	def plot_bot(self):
 		for bot in self.bots:
-			totalrlzprofit += bot.stock.profit
-			totalunrzprofit += bot.broker.unrzprofit
-			totalvalue += bot.broker.value
-			totalinvested += bot.broker.invested
-
-		totalbudget = bot.broker.totalbudget
-		totalcash = bot.broker.totalcash
-
-		if totalcash != 0:
-			totalrealperf = totalrlzprofit / totalcash * 100
-		else:
-			totalrealperf = 0
-
-		if totalinvested != 0:
-			totalunrzperf = totalunrzprofit / totalinvested * 100
-		else:
-			totalunrzperf = 0
-
-		print(
-			"===TOTAL BUDGET %.2f, CASH %8.2f, TOTAL RLZ PROFIT %8.2f, TOTAL REAL PERF %8.2f%%, TOTAL INVESTED %8.2f, TOTAL VALUE %8.2f, TOTAL UNRZ PROFIT %8.2f$, TOTAL UNRZ PERF %8.2f%%===" % (
-			totalbudget, totalcash, totalrlzprofit, totalrealperf,totalinvested,totalvalue,totalunrzprofit,totalunrzperf))
+			bot.plot_data()
